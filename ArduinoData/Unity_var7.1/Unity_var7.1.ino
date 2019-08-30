@@ -17,6 +17,7 @@ float Max, Min;
 float monitoringForce[5];
 
 float top;
+bool dawnCheker;
 
 void setup() {
   M5.begin();
@@ -32,19 +33,23 @@ void setup() {
   count = 0;
   for (int i = 0; i < sumCount; i++) {
     Buffer[i] = 9.8;
-    monitoringForce[i]=9.8;
+    monitoringForce[i] = 9.8;
   }
 
   Max = 0;
   Min = 8;
 
-  top=0.98;
+  top = 0.98;
 }
 
 void loop() {
 
   if (IMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
   {
+
+    bool small = false;
+    bool large = false;
+
     IMU.readAccelData(IMU.accelCount);  // Read the x/y/z adc values
     IMU.getAres();
 
@@ -63,8 +68,8 @@ void loop() {
 
     float force = sqrt((x * x) + (y * y) + (z * z));//forceの計算
 
-    if (Debug)force =  bufferProcessing(force * 9.8)*0.1;
-    else force = force * 9.8*0.1;
+    if (Debug)force =  bufferProcessing(force * 9.8) * 0.1;
+    else force = force * 9.8 * 0.1;
 
     if (force > Max)Max = force;
     if (force < Min)Min = force;
@@ -73,39 +78,45 @@ void loop() {
     M5.Lcd.print("Max : "); M5.Lcd.print(Max); M5.Lcd.print("\n");
     M5.Lcd.print("Min : "); M5.Lcd.print(Min);
 
-    if(force<=0.5){
-      bts.print(top+monitoringForce[4]);      
-      top=0;
-    }else{
-      bts.print(0);
+    for (int i = 0; i < sumCount - 1; i++) {
+      monitoringForce[i] = monitoringForce[i + 1];
     }
+    monitoringForce[4] = force;
 
-    bts.print(",");
-    bts.print(force*10);
-    
-   // monitoringForce[count]=force;
-
-   for(int i=0;i<sumCount-1;i++){
-    monitoringForce[i]=monitoringForce[i+1];
-   }
-   monitoringForce[4]=force;
-   
-    if(monitoringForce[0]<monitoringForce[1]){
-      if(monitoringForce[1]<monitoringForce[2]){
-        if(monitoringForce[2]>monitoringForce[3]){
-          if(monitoringForce[3]>monitoringForce[4]){            
-            top=monitoringForce[2];
+    if (monitoringForce[0] < monitoringForce[1]) {
+      if (monitoringForce[1] < monitoringForce[2]) {
+        if (monitoringForce[2] > monitoringForce[3]) {
+          if (monitoringForce[3] > monitoringForce[4]) {
+            top = monitoringForce[2];
+            dawnCheker = true;
+            //   bts.print("top");
           }
         }
       }
     }
-   
-    bts.println();
+    if (top > 4 && dawnCheker) {
+      //bts.print("large : ");
+      bts.print(top + monitoringForce[4]);
+      top = 0;
+    } else if (force <= 0.5) {
+      //bts.print("small : ");
+      bts.print(top + monitoringForce[4]);
+      top = 0;
+    } else {
+      bts.print(0.00);
+    }
     
+    bts.print(",");
+    bts.print(force);
+
+    bts.println();
+
     count++;
     if (count >= sumCount) {
       count = 0;
     }
+
+
   }
 }
 
